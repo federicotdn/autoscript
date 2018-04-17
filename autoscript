@@ -24,7 +24,7 @@ function create_storage_dir() {
 
 function print_usage() {
     echo "Usage: autoscript MODE [ID]"
-    echo "Available modes: record, replay, list, version, context"
+    echo "Available modes: record, replay, stop, list, version, context"
 }
 
 function create_file() {
@@ -79,6 +79,7 @@ function record_mode() {
     if [[ "$quiet_on" == "false" ]]; then
         echo "This session is being recorded by autoscript."
         echo "Script file: $typescript"
+        echo "Use autoscript stop, exit or CTRL+D to stop recording"
     fi
 
     if [[ "$timings_on" == "false" ]]; then
@@ -110,16 +111,11 @@ function list_mode() {
 function replay_mode() {
     create_storage_dir
     local typescript="$storage_dir"/"$1".typescript
-    local quiet_on="$2"
-    local timings_on="$3"
+    local timings_on="$2"
 
     if [[ ! -f "$typescript" ]]; then
         echo "Script for specified ID not found!" >&2
         exit 1
-    fi
-
-    if [[ "$quiet_on" == "false" ]]; then
-        echo -e "------- BEGIN REPLAY -------\n"
     fi
 
     if [[ "$timings_on" == "false" ]]; then
@@ -132,10 +128,6 @@ function replay_mode() {
         fi
 
         scriptreplay -t "$timings" -s "$typescript"
-    fi
-
-    if [[ "$quiet_on" == "false" ]]; then
-        echo -e "\n-------  END REPLAY  -------"
     fi
 }
 
@@ -186,13 +178,23 @@ function main() {
         list)
             list_mode
         ;;
+        stop)
+            if [[ -z $AUTOSCRIPT_ID ]]; then
+                echo "You are not inside an autoscript session." >&2
+                exit 1
+            fi
+
+            echo "Stopping current autoscript session..."
+            kill -s SIGKILL "$PPID" 2>&1
+            exit 1
+        ;;
         replay)
             if (( id <= 0 )); then
                 echo "Replay mode: ID not specified" >&2
                 exit 1
             fi
 
-            replay_mode "$id" "$quiet" "$timings"
+            replay_mode "$id" "$timings"
         ;;
         version)
             echo $version

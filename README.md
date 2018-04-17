@@ -2,11 +2,8 @@
 File management for `script(1)`.
 
 ## TODO:
- - List mode
- - Replay mode
- - Command to disable recording.
+ - Better list mode
  - Script compression
- - Optional timings
  - Add message/notes to session
- - Print sessions removing ANSI escape codes
- - Inform user that session is being recorded (and add -q flag)
+ - Print sessions removing ANSI escape sequences
+ - Bash tab completion
