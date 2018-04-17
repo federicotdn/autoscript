@@ -6,7 +6,7 @@ readonly version="0.1.1"
 readonly storage_perms="700"
 readonly file_perms="600"
 
-shopt -s nullglob
+set -e
 
 function create_storage_dir() {
     if [[ -d "$storage_dir" ]]; then
@@ -53,6 +53,7 @@ function record_mode() {
     local next_id=1
 
     # Search for the next ID to use by parsing filenames
+    shopt -s nullglob
     for filename in "$storage_dir"/*.typescript; do
         local id
 
@@ -61,6 +62,7 @@ function record_mode() {
             ((next_id = id + 1))
         fi
     done
+    shopt -u nullglob
 
     # Prepare typescript, metadata and timing files
     local typescript="$storage_dir"/"$next_id".typescript
@@ -93,6 +95,7 @@ function record_mode() {
 function list_mode() {
     create_storage_dir
 
+    shopt -s nullglob
     for filename in "$storage_dir"/*.typescript; do
         local id
 
@@ -106,6 +109,7 @@ function list_mode() {
             done < "$mdfile"
         fi
     done
+    shopt -u nullglob
 }
 
 function replay_mode() {

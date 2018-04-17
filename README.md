@@ -7,3 +7,4 @@ File management for `script(1)`.
  - Add message/notes to session
  - Print sessions removing ANSI escape sequences
  - Bash tab completion
+ - Fix list using alphabetical order
