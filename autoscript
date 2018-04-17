@@ -1,14 +1,13 @@
 #!/usr/bin/env bash
 # autoscript: file management for script(1)
 
-storage_dir=${XDG_CONFIG_HOME:-"$HOME/.config"}
-storage_dir+="/autoscript"
-version="0.1.1"
+readonly storage_dir="${XDG_CONFIG_HOME:-"$HOME/.config"}/autoscript"
+readonly version="0.1.1"
 
 shopt -s nullglob
 
 function create_storage_dir() {
-    mkdir -p $storage_dir -m 700
+    mkdir -p "$storage_dir" -m 700
 }
 
 function print_usage() {
@@ -41,7 +40,9 @@ function record_metatada() {
 function record_mode() {
     create_storage_dir
     
-    next_id=1
+    local quiet="$1"
+    local timings="$2"
+    local next_id=1
 
     # Search for the next ID to use by parsing filenames
     for filename in "$storage_dir"/*.typescript; do
@@ -52,16 +53,20 @@ function record_mode() {
             ((next_id = id + 1))
         fi
     done
-    
-    record_metatada "$next_id"
 
     # Start script(1), setting the AUTOSCRIPT_ID variable
     # TODO: Make timings optional
     local typescript="$storage_dir"/"$next_id".typescript
     local timings="$storage_dir"/"$next_id".timings
-
+    
     create_file "$typescript"
     create_file "$timings"
+    record_metatada "$next_id"
+
+    if [[ "$quiet" == "false" ]]; then
+        echo "This session is being recorded by autoscript."
+        echo "Output file: $typescript"
+    fi
 
     AUTOSCRIPT_ID="$next_id" script \
         -f \
@@ -102,36 +107,60 @@ function replay_mode() {
     fi
 }
 
-case $1 in
-    record)
-        if [[ -n $AUTOSCRIPT_ID ]]; then
-            # Do not run autoscript inside autoscript
-            exit 1
-        fi
-        record_mode
-    ;;
-    list)
-        list_mode
-    ;;
-    replay)
-        if [[ -z $2 ]]; then
-            echo "Replay mode: ID not specified" >&2
-            exit 1
-        fi
-        replay_mode "$2"
-    ;;
-    version)
-        echo $version
-    ;;
-    context)
-        if [[ -n $AUTOSCRIPT_ID ]]; then
-            echo "$AUTOSCRIPT_ID"
-        else
-            echo "You are not inside an autoscript session." >&2
-            exit 1
-        fi
-    ;;
-    *)
-        print_usage
-    ;;
-esac
+function main() {
+    case $1 in
+        record)
+            if [[ -n $AUTOSCRIPT_ID ]]; then
+                # Do not run autoscript inside autoscript
+                exit 1
+            fi
+
+            local quiet="false"
+            local timings="false"
+            local OPTIND=2
+
+            while getopts ":qt" opt; do
+                case "$opt" in
+                    q)
+                        quiet="true"
+                    ;;
+                    t)
+                        timings="true"
+                    ;;
+                    \?)
+                        echo "Unknown option: -$OPTARG" >&2
+                        exit 1
+                    ;;
+                esac
+            done
+
+            record_mode "$quiet" "$timings"
+        ;;
+        list)
+            list_mode
+        ;;
+        replay)
+            if [[ -z $2 ]]; then
+                echo "Replay mode: ID not specified" >&2
+                exit 1
+            fi
+            replay_mode "$2"
+        ;;
+        version)
+            echo $version
+        ;;
+        context)
+            if [[ -n $AUTOSCRIPT_ID ]]; then
+                echo "$AUTOSCRIPT_ID"
+            else
+                echo "You are not inside an autoscript session." >&2
+                exit 1
+            fi
+        ;;
+        *)
+            print_usage
+        ;;
+    esac
+}
+
+main "$@"
