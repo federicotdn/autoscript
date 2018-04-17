@@ -11,4 +11,7 @@ uninstall:
 	sudo rm $(INSTALL_PATH)/$(SCRIPT_NAME)
 
 install_bashrc:
+	echo >> ~/.bashrc
+	echo "# Added by autoscript Makefile" >> ~/.bashrc
 	echo "autoscript record && exit; true" >> ~/.bashrc
+	echo >> ~/.bashrc

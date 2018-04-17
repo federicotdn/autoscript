@@ -3,6 +3,7 @@
 
 storage_dir=${XDG_CONFIG_HOME:-"$HOME/.config"}
 storage_dir+="/autoscript"
+version="0.1.0"
 
 shopt -s nullglob
 
@@ -12,7 +13,7 @@ function create_storage_dir() {
 
 function print_usage() {
     echo "Usage: autoscript MODE [ID]"
-    echo "Available modes: record, replay, list"
+    echo "Available modes: record, replay, list, version"
     exit 1
 }
 
@@ -20,20 +21,22 @@ function record_metatada() {
     # Write context information to metadata file
     local mdfile="$storage_dir"/"$1".metadata.txt
     {
-        echo "DATE: $(date)"
-        echo "SYSTEM: $(uname -a)"
-        echo "USER: $(whoami)"
+        echo "DATE=$(date)"
+        echo "SYSTEM=$(uname -r)"
+        echo "USER=$(whoami)"
+        echo "TIMINGS=true"
     } >> "$mdfile"
 }
 
 function record_mode() {
     create_storage_dir
     
-    ((next_id = 1))
+    next_id=1
 
     # Search for the next ID to use by parsing filenames
-    for filename in "$storage_dir"/*; do
+    for filename in "$storage_dir"/*.typescript; do
         local id
+
         id=$(basename "$filename" | grep -Eo "^[0-9]+")
         if [[ $? -eq 0 ]] && ((id >= next_id)); then
             ((next_id = id + 1))
@@ -52,11 +55,35 @@ function record_mode() {
 }
 
 function list_mode() {
-    : # TODO
+    create_storage_dir
+
+    for filename in "$storage_dir"/*.typescript; do
+        local id
+
+        id=$(basename "$filename" | grep -Eo "^[0-9]+")
+        if [[ $? -eq 0 ]]; then
+            local mdfile="$storage_dir"/"$id".metadata.txt
+            echo "$id:"            
+
+            while IFS="=" read -r key value; do
+                echo "-> $key: $value"
+            done < "$mdfile"
+        fi
+    done
 }
 
 function replay_mode() {
-    : # TODO
+    create_storage_dir
+    local typescript="$storage_dir"/"$1".typescript
+
+    if [[ -f "$typescript" ]]; then
+        echo "========== BEGIN REPLAY =========="
+        cat "$typescript"
+        echo "==========  END REPLAY  =========="
+    else
+        echo "Specified script ID not found!"
+        exit 1
+    fi
 }
 
 case $1 in
@@ -76,6 +103,9 @@ case $1 in
             exit 1
         fi
         replay_mode "$2"
+    ;;
+    version)
+        echo $version
     ;;
     *)
         print_usage
