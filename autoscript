@@ -26,9 +26,7 @@ function create_file() {
 
 function record_metatada() {
     # Write context information to metadata file
-    local mdfile="$storage_dir"/"$1".metadata.txt
-    create_file "$mdfile"
-
+    local mdfile="$1"
     {
         echo "DATE=$(date)"
         echo "SYSTEM=$(uname -r)"
@@ -40,8 +38,8 @@ function record_metatada() {
 function record_mode() {
     create_storage_dir
     
-    local quiet="$1"
-    local timings="$2"
+    local quiet_on="$1"
+    local timings_on="$2"
     local next_id=1
 
     # Search for the next ID to use by parsing filenames
@@ -54,25 +52,31 @@ function record_mode() {
         fi
     done
 
-    # Start script(1), setting the AUTOSCRIPT_ID variable
-    # TODO: Make timings optional
+    # Prepare typescript, metadata and timing files
     local typescript="$storage_dir"/"$next_id".typescript
     local timings="$storage_dir"/"$next_id".timings
+    local mdfile="$storage_dir"/"$next_id".metadata.txt
     
     create_file "$typescript"
-    create_file "$timings"
-    record_metatada "$next_id"
+    create_file "$mdfile"
 
-    if [[ "$quiet" == "false" ]]; then
-        echo "This session is being recorded by autoscript."
-        echo "Output file: $typescript"
+    if [[ "$timings_on" == "true" ]]; then
+        create_file "$timings"
     fi
 
-    AUTOSCRIPT_ID="$next_id" script \
-        -f \
-        -q \
-        --timing="$timings" \
-        "$typescript"
+    record_metatada "$mdfile"
+
+    if [[ "$quiet_on" == "false" ]]; then
+        echo "This session is being recorded by autoscript."
+        echo "Script file: $typescript"
+    fi
+
+    if [[ "$timings_on" == "false" ]]; then
+        timings="/dev/null"
+    fi
+
+    # Start script(1)
+    AUTOSCRIPT_ID="$next_id" script -f -q -t "$typescript" 2> "$timings"
 }
 
 function list_mode() {
@@ -96,15 +100,30 @@ function list_mode() {
 function replay_mode() {
     create_storage_dir
     local typescript="$storage_dir"/"$1".typescript
+    local quiet_on="$2"
+    local timings_on="$3"
 
-    if [[ -f "$typescript" ]]; then
-        echo "========== BEGIN REPLAY =========="
-        cat "$typescript"
-        echo "==========  END REPLAY  =========="
-    else
-        echo "Specified script ID not found!" >&2
+    if [[ ! -f "$typescript" ]]; then
+        echo "Script for specified ID not found!" >&2
         exit 1
     fi
+
+    [[ "$quiet_on" == "false" ]] && echo -e "------- BEGIN REPLAY -------\n"
+
+    if [[ "$timings_on" == "false" ]]; then
+        cat "$typescript"
+    else
+        local timings="$storage_dir"/"$1".timings
+        if [[ ! -f "$timings" ]]; then
+            echo "Timings file for specified ID not found!" >&2
+            exit 1
+        fi
+
+        scriptreplay -t "$timings" -s "$typescript"
+    fi
+
+    [[ "$quiet_on" == "false" ]] && echo -e "\n-------  END REPLAY  -------"
+    exit 0
 }
 
 function main() {
@@ -144,7 +163,27 @@ function main() {
                 echo "Replay mode: ID not specified" >&2
                 exit 1
             fi
-            replay_mode "$2"
+
+            local quiet="false"
+            local timings="false"
+            local OPTIND=3
+
+            while getopts ":qt" opt; do
+                case "$opt" in
+                    q)
+                        quiet="true"
+                    ;;
+                    t)
+                        timings="true"
+                    ;;
+                    \?)
+                        echo "Unknown option: -$OPTARG" >&2
+                        exit 1
+                    ;;
+                esac
+            done
+
+            replay_mode "$2" "$quiet" "$timings"
         ;;
         version)
             echo $version
