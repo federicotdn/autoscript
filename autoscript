@@ -3,17 +3,28 @@
 
 readonly storage_dir="${XDG_CONFIG_HOME:-"$HOME/.config"}/autoscript"
 readonly version="0.1.1"
+readonly storage_perms="700"
+readonly file_perms="600"
 
 shopt -s nullglob
 
 function create_storage_dir() {
-    mkdir -p "$storage_dir" -m 700
+    if [[ -d "$storage_dir" ]]; then
+        if [[ $(stat -c "%a" "$storage_dir") == "$storage_perms" ]]; then
+            # Storage dir exists and has correct permissions
+            return
+        else
+            echo "Storage directory exists, but has incorrect permissions." >&2
+            exit 1
+        fi
+    fi
+
+    mkdir "$storage_dir" -m "$storage_perms"
 }
 
 function print_usage() {
     echo "Usage: autoscript MODE [ID]"
     echo "Available modes: record, replay, list, version, context"
-    exit 1
 }
 
 function create_file() {
@@ -21,7 +32,7 @@ function create_file() {
         echo "File already exists: $1" >&2
         exit 1
     fi
-    install -m 600 /dev/null "$1"
+    install -m "$file_perms" /dev/null "$1"
 }
 
 function record_metatada() {
@@ -31,7 +42,6 @@ function record_metatada() {
         echo "DATE=$(date)"
         echo "SYSTEM=$(uname -r)"
         echo "USER=$(whoami)"
-        echo "TIMINGS=true"
     } >> "$mdfile"
 }
 
@@ -108,50 +118,68 @@ function replay_mode() {
         exit 1
     fi
 
-    [[ "$quiet_on" == "false" ]] && echo -e "------- BEGIN REPLAY -------\n"
+    if [[ "$quiet_on" == "false" ]]; then
+        echo -e "------- BEGIN REPLAY -------\n"
+    fi
 
     if [[ "$timings_on" == "false" ]]; then
         cat "$typescript"
     else
         local timings="$storage_dir"/"$1".timings
         if [[ ! -f "$timings" ]]; then
-            echo "Timings file for specified ID not found!" >&2
+            echo "No timings file found for specified ID (remove '-t' flag)." >&2
             exit 1
         fi
 
         scriptreplay -t "$timings" -s "$typescript"
     fi
 
-    [[ "$quiet_on" == "false" ]] && echo -e "\n-------  END REPLAY  -------"
-    exit 0
+    if [[ "$quiet_on" == "false" ]]; then
+        echo -e "\n-------  END REPLAY  -------"
+    fi
 }
 
 function main() {
-    case $1 in
+    local subcommand="$1"
+
+    # Parse arguments
+    local quiet="false"
+    local timings="false"
+    local id=0
+    local OPTIND=2
+
+    while getopts ":qti:h" opt; do
+        case "$opt" in
+            q)
+                quiet="true"
+            ;;
+            t)
+                timings="true"
+            ;;
+            i)
+                id="$OPTARG"
+            ;;
+            h)
+                print_usage
+                exit 0
+            ;;
+            :)
+                echo "Option -$OPTARG requires an argument." >&2
+                exit 1
+            ;;
+            \?)
+                echo "Unknown option: -$OPTARG" >&2
+                exit 1
+            ;;
+        esac
+    done
+
+    case "$subcommand" in
         record)
             if [[ -n $AUTOSCRIPT_ID ]]; then
                 # Do not run autoscript inside autoscript
                 exit 1
             fi
-
-            local quiet="false"
-            local timings="false"
-            local OPTIND=2
-
-            while getopts ":qt" opt; do
-                case "$opt" in
-                    q)
-                        quiet="true"
-                    ;;
-                    t)
-                        timings="true"
-                    ;;
-                    \?)
-                        echo "Unknown option: -$OPTARG" >&2
-                        exit 1
-                    ;;
-                esac
-            done
 
             record_mode "$quiet" "$timings"
         ;;
@@ -159,31 +187,12 @@ function main() {
             list_mode
         ;;
         replay)
-            if [[ -z $2 ]]; then
+            if (( id <= 0 )); then
                 echo "Replay mode: ID not specified" >&2
                 exit 1
             fi
 
-            local quiet="false"
-            local timings="false"
-            local OPTIND=3
-
-            while getopts ":qt" opt; do
-                case "$opt" in
-                    q)
-                        quiet="true"
-                    ;;
-                    t)
-                        timings="true"
-                    ;;
-                    \?)
-                        echo "Unknown option: -$OPTARG" >&2
-                        exit 1
-                    ;;
-                esac
-            done
-
-            replay_mode "$2" "$quiet" "$timings"
+            replay_mode "$id" "$quiet" "$timings"
         ;;
         version)
             echo $version
@@ -198,6 +207,7 @@ function main() {
         ;;
         *)
             print_usage
+            exit 1
         ;;
     esac
 }
