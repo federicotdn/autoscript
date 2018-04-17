@@ -19,7 +19,7 @@ function print_usage() {
 
 function create_file() {
     if [[ -f "$1" ]]; then
-        echo "File already exists: $1"
+        echo "File already exists: $1" >&2
         exit 1
     fi
     install -m 600 /dev/null "$1"
@@ -97,7 +97,7 @@ function replay_mode() {
         cat "$typescript"
         echo "==========  END REPLAY  =========="
     else
-        echo "Specified script ID not found!"
+        echo "Specified script ID not found!" >&2
         exit 1
     fi
 }
@@ -115,7 +115,7 @@ case $1 in
     ;;
     replay)
         if [[ -z $2 ]]; then
-            echo "Replay mode: ID not specified"
+            echo "Replay mode: ID not specified" >&2
             exit 1
         fi
         replay_mode "$2"
@@ -127,7 +127,7 @@ case $1 in
         if [[ -n $AUTOSCRIPT_ID ]]; then
             echo "$AUTOSCRIPT_ID"
         else
-            echo "You are not inside an autoscript session."
+            echo "You are not inside an autoscript session." >&2
             exit 1
         fi
     ;;
