@@ -3,12 +3,12 @@
 
 storage_dir=${XDG_CONFIG_HOME:-"$HOME/.config"}
 storage_dir+="/autoscript"
-version="0.1.0"
+version="0.1.1"
 
 shopt -s nullglob
 
 function create_storage_dir() {
-    mkdir -p $storage_dir
+    mkdir -p $storage_dir -m 700
 }
 
 function print_usage() {
@@ -17,9 +17,19 @@ function print_usage() {
     exit 1
 }
 
+function create_file() {
+    if [[ -f "$1" ]]; then
+        echo "File already exists: $1"
+        exit 1
+    fi
+    install -m 600 /dev/null "$1"
+}
+
 function record_metatada() {
     # Write context information to metadata file
     local mdfile="$storage_dir"/"$1".metadata.txt
+    create_file "$mdfile"
+
     {
         echo "DATE=$(date)"
         echo "SYSTEM=$(uname -r)"
@@ -43,15 +53,21 @@ function record_mode() {
         fi
     done
     
-    record_metatada $next_id
+    record_metatada "$next_id"
 
-    # Start script(1), setting the AUTOSCRIPT variable
+    # Start script(1), setting the AUTOSCRIPT_ID variable
     # TODO: Make timings optional
-    AUTOSCRIPT=true script \
+    local typescript="$storage_dir"/"$next_id".typescript
+    local timings="$storage_dir"/"$next_id".timings
+
+    create_file "$typescript"
+    create_file "$timings"
+
+    AUTOSCRIPT_ID="$next_id" script \
         -f \
         -q \
-        --timing="$storage_dir"/"$next_id".timings \
-        "$storage_dir"/"$next_id".typescript
+        --timing="$timings" \
+        "$typescript"
 }
 
 function list_mode() {
@@ -88,7 +104,7 @@ function replay_mode() {
 
 case $1 in
     record)
-        if [[ -n $AUTOSCRIPT ]]; then
+        if [[ -n $AUTOSCRIPT_ID ]]; then
             # Do not run autoscript inside autoscript
             exit 1
         fi
