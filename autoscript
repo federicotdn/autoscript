@@ -13,7 +13,7 @@ function create_storage_dir() {
 
 function print_usage() {
     echo "Usage: autoscript MODE [ID]"
-    echo "Available modes: record, replay, list, version"
+    echo "Available modes: record, replay, list, version, context"
     exit 1
 }
 
@@ -122,6 +122,14 @@ case $1 in
     ;;
     version)
         echo $version
+    ;;
+    context)
+        if [[ -n $AUTOSCRIPT_ID ]]; then
+            echo "$AUTOSCRIPT_ID"
+        else
+            echo "You are not inside an autoscript session."
+            exit 1
+        fi
     ;;
     *)
         print_usage
