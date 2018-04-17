@@ -1,0 +1,83 @@
+#!/usr/bin/env bash
+# autoscript: file management for script(1)
+
+storage_dir=${XDG_CONFIG_HOME:-"$HOME/.config"}
+storage_dir+="/autoscript"
+
+shopt -s nullglob
+
+function create_storage_dir() {
+    mkdir -p $storage_dir
+}
+
+function print_usage() {
+    echo "Usage: autoscript MODE [ID]"
+    echo "Available modes: record, replay, list"
+    exit 1
+}
+
+function record_metatada() {
+    # Write context information to metadata file
+    local mdfile="$storage_dir"/"$1".metadata.txt
+    {
+        echo "DATE: $(date)"
+        echo "SYSTEM: $(uname -a)"
+        echo "USER: $(whoami)"
+    } >> "$mdfile"
+}
+
+function record_mode() {
+    create_storage_dir
+    
+    ((next_id = 1))
+
+    # Search for the next ID to use by parsing filenames
+    for filename in "$storage_dir"/*; do
+        local id
+        id=$(basename "$filename" | grep -Eo "^[0-9]+")
+        if [[ $? -eq 0 ]] && ((id >= next_id)); then
+            ((next_id = id + 1))
+        fi
+    done
+    
+    record_metatada $next_id
+
+    # Start script(1), setting the AUTOSCRIPT variable
+    # TODO: Make timings optional
+    AUTOSCRIPT=true script \
+        -f \
+        -q \
+        --timing="$storage_dir"/"$next_id".timings \
+        "$storage_dir"/"$next_id".typescript
+}
+
+function list_mode() {
+    : # TODO
+}
+
+function replay_mode() {
+    : # TODO
+}
+
+case $1 in
+    record)
+        if [[ -n $AUTOSCRIPT ]]; then
+            # Do not run autoscript inside autoscript
+            exit 1
+        fi
+        record_mode
+    ;;
+    list)
+        list_mode
+    ;;
+    replay)
+        if [[ -z $2 ]]; then
+            echo "Replay mode: ID not specified"
+            exit 1
+        fi
+        replay_mode "$2"
+    ;;
+    *)
+        print_usage
+    ;;
+esac
