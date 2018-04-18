@@ -31,7 +31,7 @@ function ensure_storage_dir() {
 
 function print_usage() {
     echo "Usage: autoscript MODE [ID]"
-    echo "Available modes: record, replay, stop, list, version, context"
+    echo "Available modes: record, replay, resume, list, version, context"
 }
 
 function create_file() {
@@ -92,7 +92,7 @@ function record_mode() {
     if [[ "$quiet_on" == "false" ]]; then
         echo "This session is being recorded by autoscript."
         echo "Script file: $typescript"
-        echo "Use 'autoscript stop' to stop recording"
+        echo "Use 'exit' to stop recording"
     fi
 
     if [[ "$timings_on" == "false" ]]; then
@@ -131,13 +131,32 @@ function list_mode() {
     } | sort -g
 }
 
+function resume_mode() {
+    ensure_storage_dir
+    local id="$1"
+    local typescript="$storage_dir"/"$id".typescript
+    local timings="$storage_dir"/"$id".timings
+
+    if [[ ! -f "$typescript" ]]; then
+        echo "Can't resume: no script found for specified ID." >&2
+        exit 1
+    fi
+
+    if [[ -f "$timings" ]]; then
+        echo "Can't resume a script with timings enabled." >&2
+        exit 1
+    fi
+
+    AUTOSCRIPT_ID="$id" script -f -a -q "$typescript"
+}
+
 function replay_mode() {
     ensure_storage_dir
     local typescript="$storage_dir"/"$1".typescript
     local timings_on="$2"
 
     if [[ ! -f "$typescript" ]]; then
-        echo "Script for specified ID not found!" >&2
+        echo "No script found for specified ID." >&2
         exit 1
     fi
 
@@ -208,16 +227,6 @@ function main() {
         list)
             list_mode
         ;;
-        stop)
-            if [[ -z $AUTOSCRIPT_ID ]]; then
-                echo "You are not inside an autoscript session." >&2
-                exit 1
-            fi
-
-            echo "Stopping current autoscript session..."
-            kill -s SIGKILL "$PPID" 2>&1
-            exit 1
-        ;;
         replay)
             if (( id <= 0 )); then
                 echo "Replay mode: ID not specified" >&2
@@ -225,6 +234,14 @@ function main() {
             fi
 
             replay_mode "$id" "$timings"
+        ;;
+        resume)
+            if [[ -n $AUTOSCRIPT_ID ]]; then
+                echo "Can't resume: you are currently inside an autoscript session." >&2
+                exit 1
+            fi
+
+            resume_mode "$id"
         ;;
         version)
             echo $version
