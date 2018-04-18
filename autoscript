@@ -2,13 +2,20 @@
 # autoscript: file management for script(1)
 
 readonly storage_dir="${XDG_CONFIG_HOME:-"$HOME/.config"}/autoscript"
-readonly version="0.1.1"
+readonly version="0.1.2"
 readonly storage_perms="700"
 readonly file_perms="600"
 
 set -e
 
-function create_storage_dir() {
+function assert_command_exists() {
+    if ! command -v "$1" > /dev/null 2>&1; then
+        echo "Command '$1' is required." >&2
+        exit 1
+    fi
+}
+
+function ensure_storage_dir() {
     if [[ -d "$storage_dir" ]]; then
         if [[ $(stat -c "%a" "$storage_dir") == "$storage_perms" ]]; then
             # Storage dir exists and has correct permissions
@@ -38,18 +45,22 @@ function create_file() {
 function record_metatada() {
     # Write context information to metadata file
     local mdfile="$1"
+    local message="$2"
+
     {
-        echo "DATE=$(date)"
+        echo "DATE=$(date "+%Y-%m-%d %H:%M")"
         echo "SYSTEM=$(uname -r)"
         echo "USER=$(whoami)"
+        echo "MESSAGE=$message"
     } >> "$mdfile"
 }
 
 function record_mode() {
-    create_storage_dir
+    ensure_storage_dir
     
     local quiet_on="$1"
     local timings_on="$2"
+    local message="$3"
     local next_id=1
 
     # Search for the next ID to use by parsing filenames
@@ -76,12 +87,12 @@ function record_mode() {
         create_file "$timings"
     fi
 
-    record_metatada "$mdfile"
+    record_metatada "$mdfile" "$message"
 
     if [[ "$quiet_on" == "false" ]]; then
         echo "This session is being recorded by autoscript."
         echo "Script file: $typescript"
-        echo "Use autoscript stop, exit or CTRL+D to stop recording"
+        echo "Use 'autoscript stop' to stop recording"
     fi
 
     if [[ "$timings_on" == "false" ]]; then
@@ -93,27 +104,35 @@ function record_mode() {
 }
 
 function list_mode() {
-    create_storage_dir
+    ensure_storage_dir
 
-    shopt -s nullglob
-    for filename in "$storage_dir"/*.typescript; do
-        local id
+    {
+        shopt -s nullglob
+        for filename in "$storage_dir"/*.typescript; do
+            local id
 
-        id=$(basename "$filename" | grep -Eo "^[0-9]+")
-        if [[ $? -eq 0 ]]; then
-            local mdfile="$storage_dir"/"$id".metadata.txt
-            echo "$id:"            
+            id=$(basename "$filename" | grep -Eo "^[0-9]+")
+            if [[ $? -eq 0 ]]; then
+                local mdfile="$storage_dir"/"$id".metadata.txt
+                local md_date=""
+                local md_message="-"
 
-            while IFS="=" read -r key value; do
-                echo "-> $key: $value"
-            done < "$mdfile"
-        fi
-    done
-    shopt -u nullglob
+                while IFS="=" read -r key value; do
+                    case "$key" in
+                        DATE) md_date="$value" ;;
+                        MESSAGE) md_message="$value" ;;
+                    esac
+                done < "$mdfile"
+
+                printf " %s\t%s\t%s\n" "$id" "$md_date" "$md_message"
+            fi
+        done
+        shopt -u nullglob
+    } | sort -g
 }
 
 function replay_mode() {
-    create_storage_dir
+    ensure_storage_dir
     local typescript="$storage_dir"/"$1".typescript
     local timings_on="$2"
 
@@ -136,15 +155,19 @@ function replay_mode() {
 }
 
 function main() {
+    assert_command_exists script
+    assert_command_exists scriptreplay
+
     local subcommand="$1"
 
     # Parse arguments
     local quiet="false"
     local timings="false"
+    local message="-"
     local id=0
     local OPTIND=2
 
-    while getopts ":qti:h" opt; do
+    while getopts ":qti:m:h" opt; do
         case "$opt" in
             q)
                 quiet="true"
@@ -158,6 +181,9 @@ function main() {
             h)
                 print_usage
                 exit 0
+            ;;
+            m)
+                message="$OPTARG"
             ;;
             :)
                 echo "Option -$OPTARG requires an argument." >&2
@@ -177,7 +203,7 @@ function main() {
                 exit 1
             fi
 
-            record_mode "$quiet" "$timings"
+            record_mode "$quiet" "$timings" "$message"
         ;;
         list)
             list_mode
