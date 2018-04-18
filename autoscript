@@ -30,8 +30,14 @@ function ensure_storage_dir() {
 }
 
 function print_usage() {
-    echo "Usage: autoscript MODE [ID]"
-    echo "Available modes: record, replay, resume, list, version, context"
+    printf "Usage: autoscript [-v] [-h] <command> [-i <id>]\n\n"
+    printf "Available commands:\n"
+    printf "   record\n"
+    printf "   replay\n"
+    printf "   resume\n"
+    printf "   delete\n"
+    printf "   list\n"
+    printf "   context\n"
 }
 
 function create_file() {
@@ -173,9 +179,34 @@ function replay_mode() {
     fi
 }
 
+function delete_mode() {
+    ensure_storage_dir
+    local typescript="$storage_dir"/"$1".typescript
+    local timings="$storage_dir"/"$1".timings
+    local mdfile="$storage_dir"/"$1".metadata.txt
+
+    if [[ ! -f "$typescript" ]]; then
+        echo "No script found for specified ID." >&2
+        exit 1
+    fi
+
+    rm "$typescript"
+    rm "$mdfile"
+    rm -f "$timings"
+}
+
 function main() {
     assert_command_exists script
     assert_command_exists scriptreplay
+
+    # Handle help and version flags first
+    if [[ "$1" == "-v" ]]; then
+        echo "$version"
+        exit 0
+    elif [[ "$1" == "-h" ]]; then
+        print_usage
+        exit 0
+    fi
 
     local subcommand="$1"
 
@@ -186,7 +217,7 @@ function main() {
     local id=0
     local OPTIND=2
 
-    while getopts ":qti:m:h" opt; do
+    while getopts ":qti:m:" opt; do
         case "$opt" in
             q)
                 quiet="true"
@@ -196,10 +227,6 @@ function main() {
             ;;
             i)
                 id="$OPTARG"
-            ;;
-            h)
-                print_usage
-                exit 0
             ;;
             m)
                 message="$OPTARG"
@@ -238,6 +265,17 @@ function main() {
 
             replay_mode "$id" "$timings"
         ;;
+        delete)
+            if (( id <= 0 )); then
+                echo "Delete mode: ID not specified" >&2
+                exit 1
+            elif [[ -n "$AUTOSCRIPT_ID" ]] && [[ "$AUTOSCRIPT_ID" == "$id" ]]; then
+                echo "Specified script is being written by current session." >&2
+                exit 1
+            fi
+
+            delete_mode "$id"
+        ;;
         resume)
             if [[ -n "$AUTOSCRIPT_ID" ]]; then
                 echo "Can't resume: you are currently inside an autoscript session." >&2
@@ -245,9 +283,6 @@ function main() {
             fi
 
             resume_mode "$id"
-        ;;
-        version)
-            echo $version
         ;;
         context)
             if [[ -n "$AUTOSCRIPT_ID" ]]; then
