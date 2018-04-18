@@ -214,10 +214,10 @@ function main() {
             ;;
         esac
     done
-
+    
     case "$subcommand" in
         record)
-            if [[ -n $AUTOSCRIPT_ID ]]; then
+            if [[ -n "$AUTOSCRIPT_ID" ]]; then
                 # Do not run autoscript inside autoscript
                 exit 1
             fi
@@ -231,12 +231,15 @@ function main() {
             if (( id <= 0 )); then
                 echo "Replay mode: ID not specified" >&2
                 exit 1
+            elif [[ -n "$AUTOSCRIPT_ID" ]] && [[ "$AUTOSCRIPT_ID" == "$id" ]]; then
+                echo "Specified script is being written by current session." >&2
+                exit 1
             fi
 
             replay_mode "$id" "$timings"
         ;;
         resume)
-            if [[ -n $AUTOSCRIPT_ID ]]; then
+            if [[ -n "$AUTOSCRIPT_ID" ]]; then
                 echo "Can't resume: you are currently inside an autoscript session." >&2
                 exit 1
             fi
@@ -247,7 +250,7 @@ function main() {
             echo $version
         ;;
         context)
-            if [[ -n $AUTOSCRIPT_ID ]]; then
+            if [[ -n "$AUTOSCRIPT_ID" ]]; then
                 echo "$AUTOSCRIPT_ID"
             else
                 echo "You are not inside an autoscript session." >&2
