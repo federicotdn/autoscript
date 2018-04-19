@@ -30,7 +30,7 @@ function ensure_storage_dir() {
 }
 
 function print_usage() {
-    printf "usage: autoscript [-v] [-h] <command> [-i <id>]\n\n"
+    printf "usage: autoscript [-v] [-h] <command> [-i <id>] [-q] [-m <message>]\n\n"
     printf "Available commands:\n"
     printf "   record\n"
     printf "   replay\n"
@@ -98,7 +98,8 @@ function record_mode() {
     if [[ "$quiet_on" == "false" ]]; then
         echo "This session is being recorded by autoscript."
         echo "Script file: $typescript"
-        echo "Use 'exit' to stop recording"
+        echo "Use 'exit' to stop recording".
+        echo
     fi
 
     if [[ "$timings_on" == "false" ]]; then
