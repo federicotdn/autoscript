@@ -80,7 +80,6 @@ $ autoscript replay -i 3 | fzf --ansi --reverse
 ```
 
 ## Todo
- - Better list mode
  - Add more scripts metadata
  - Script compression
  - Bash tab completion

@@ -2,7 +2,7 @@
 # autoscript: file management for script(1)
 
 readonly storage_dir="${XDG_CONFIG_HOME:-"$HOME/.config"}/autoscript"
-readonly version="0.1.2"
+readonly version="0.1.3"
 readonly storage_perms="700"
 readonly file_perms="600"
 
@@ -30,14 +30,23 @@ function ensure_storage_dir() {
 }
 
 function print_usage() {
-    printf "usage: autoscript [-v] [-h] <command> [-i <id>] [-q] [-m <message>]\n\n"
+    printf "usage: autoscript [-h] [-v] <command> [-i <id>] [-q] [-t] [-m <message>]\n\n"
     printf "Available commands:\n"
     printf "   record\n"
     printf "   replay\n"
     printf "   resume\n"
     printf "   delete\n"
     printf "   list\n"
-    printf "   context\n"
+    printf "   context\n\n"
+    printf "Arguments:\n"
+    {
+        printf "   -id <id>\tSpecify an ID\n"
+        printf "   -t\tRecord/replay with timings\n"
+        printf "   -q\tEnable quiet mode\n"
+        printf "   -m <message>\tSpecify a message\n"
+        printf "   -h\tPrint help and exit\n"
+        printf "   -v\tPrint version and exit\n"
+    } | column -t -s $'\t'
 }
 
 function create_file() {
@@ -114,10 +123,11 @@ function list_mode() {
     ensure_storage_dir
 
     {
+        printf " ID\t\tDATE\t\tMESSAGE\n"
+
         shopt -s nullglob
         for filename in "$storage_dir"/*.typescript; do
             local id
-
             id=$(basename "$filename" | grep -Eo "^[0-9]+")
             if [[ $? -eq 0 ]]; then
                 local mdfile="$storage_dir"/"$id".metadata.txt
@@ -131,11 +141,11 @@ function list_mode() {
                     esac
                 done < "$mdfile"
 
-                printf " %s\t%s\t%s\n" "$id" "$md_date" "$md_message"
+                printf " %s\t\t%s\t\t%s\n" "$id" "$md_date" "$md_message"
             fi
         done
         shopt -u nullglob
-    } | sort -g
+    } | sort -g | column -t -s $'\t' -n
 }
 
 function resume_mode() {
