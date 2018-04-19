@@ -78,7 +78,7 @@ $ autoscript list
 Note that the `list` command will show a `(r)` next to the IDs of sessions that are currently being recorded.
 
 ## Tips
-Using [junegunn's fzf](https://github.com/junegunn/fzf), one can easily search for text in a previousy recorded session:
+Using [junegunn's `fzf`](https://github.com/junegunn/fzf), one can easily search for text in a previousy recorded session:
 ```bash
 $ autoscript replay -i 3 | fzf --ansi --reverse
 ```
@@ -89,3 +89,4 @@ $ autoscript replay -i 3 | fzf --ansi --reverse
  - Bash tab completion
  - Check is macOS support is possible
  - Add storage directory lock
+ - Remove 'cant replay current session' limitation
