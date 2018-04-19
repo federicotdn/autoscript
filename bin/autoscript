@@ -57,6 +57,21 @@ function create_file() {
     install -m "$file_perms" /dev/null "$1"
 }
 
+function lock_id() {
+    mkdir -m "$storage_perms" "$storage_dir"/"$1".lock > /dev/null 2>&1
+}
+
+function unlock_id() {
+    rmdir "$storage_dir"/"$1".lock
+}
+
+function check_id_lock() {
+    # "Check" if lock is locked, without locking it
+    # Not an atomic operation, shouldn't be used
+    # for anything important
+    test -d "$storage_dir"/"$1".lock
+}
+
 function record_metatada() {
     # Write context information to metadata file
     local mdfile="$1"
@@ -125,8 +140,12 @@ function record_mode() {
         timings="/dev/null"
     fi
 
+    lock_id "$next_id"
+
     # Start script(1)
     AUTOSCRIPT_ID="$next_id" script -f -q -t "$typescript" 2> "$timings"
+    
+    unlock_id "$next_id"
 }
 
 function list_mode() {
@@ -152,7 +171,7 @@ function list_mode() {
                         esac
                     done < "$mdfile"
 
-                    if fuser "$filename" -s; then
+                    if check_id_lock "$id"; then
                         id+=" (r)"
                     fi
 
@@ -180,7 +199,14 @@ function resume_mode() {
         exit 1
     fi
 
+    if ! lock_id "$id"; then
+        echo "Can't resume: specified session is currently being recorded." >&2
+        exit 1
+    fi
+
     AUTOSCRIPT_ID="$id" script -f -a -q "$typescript"
+
+    unlock_id "$id"
 }
 
 function replay_mode() {
@@ -218,18 +244,26 @@ function replay_mode() {
 
 function delete_mode() {
     ensure_storage_dir
-    local typescript="$storage_dir"/"$1".typescript
-    local timings="$storage_dir"/"$1".timings
-    local mdfile="$storage_dir"/"$1".metadata.txt
+    local id="$1"
+    local typescript="$storage_dir"/"$id".typescript
+    local timings="$storage_dir"/"$id".timings
+    local mdfile="$storage_dir"/"$id".metadata.txt
 
     if [[ ! -f "$typescript" ]]; then
         echo "No script found for specified ID." >&2
         exit 1
     fi
 
+    if ! lock_id "$id"; then
+        echo "Specified session is currently being recorded." >&2
+        exit 1
+    fi
+
     rm "$typescript"
     rm "$mdfile"
     rm -f "$timings"
+
+    unlock_id "$id"
 }
 
 function main() {
@@ -283,6 +317,7 @@ function main() {
         record)
             if [[ -n "$AUTOSCRIPT_ID" ]]; then
                 # Do not run autoscript inside autoscript
+                echo "Can't record a session inside another session." >&2
                 exit 1
             fi
 
@@ -302,9 +337,6 @@ function main() {
         delete)
             if (( id <= 0 )); then
                 echo "Delete mode: ID not specified" >&2
-                exit 1
-            elif [[ -n "$AUTOSCRIPT_ID" ]] && [[ "$AUTOSCRIPT_ID" == "$id" ]]; then
-                echo "Specified script is being written by current session." >&2
                 exit 1
             fi
 

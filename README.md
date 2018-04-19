@@ -91,4 +91,3 @@ To uninstall `autoscript`, delete the application directory (default: `~/.autosc
  - Script compression
  - Bash tab completion
  - Check is macOS support is possible
- - Add per-session lock, remove `fuser`
