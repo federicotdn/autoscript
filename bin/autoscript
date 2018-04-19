@@ -125,27 +125,34 @@ function list_mode() {
     {
         printf " ID\t\tDATE\t\tMESSAGE\n"
 
-        shopt -s nullglob
-        for filename in "$storage_dir"/*.typescript; do
-            local id
-            id=$(basename "$filename" | grep -Eo "^[0-9]+")
-            if [[ $? -eq 0 ]]; then
-                local mdfile="$storage_dir"/"$id".metadata.txt
-                local md_date=""
-                local md_message="-"
+        {
+            shopt -s nullglob
+            for filename in "$storage_dir"/*.typescript; do
+                local id
+                id=$(basename "$filename" | grep -Eo "^[0-9]+")
 
-                while IFS="=" read -r key value; do
-                    case "$key" in
-                        DATE) md_date="$value" ;;
-                        MESSAGE) md_message="$value" ;;
-                    esac
-                done < "$mdfile"
+                if [[ $? -eq 0 ]]; then
+                    local mdfile="$storage_dir"/"$id".metadata.txt
+                    local md_date=""
+                    local md_message="-"
 
-                printf " %s\t\t%s\t\t%s\n" "$id" "$md_date" "$md_message"
-            fi
-        done
-        shopt -u nullglob
-    } | sort -g | column -t -s $'\t' -n
+                    while IFS="=" read -r key value; do
+                        case "$key" in
+                            DATE) md_date="$value" ;;
+                            MESSAGE) md_message="$value" ;;
+                        esac
+                    done < "$mdfile"
+
+                    if fuser "$filename" -s; then
+                        id+=" (r)"
+                    fi
+
+                    printf " %s\t\t%s\t\t%s\n" "$id" "$md_date" "$md_message"
+                fi
+            done
+            shopt -u nullglob
+        } | sort -g
+    } | column -t -s $'\t' -n
 }
 
 function resume_mode() {

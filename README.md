@@ -35,9 +35,10 @@ $ exit # Exit the current session
 After a session has been recorded, it'll show up in the sessions list:
 ```bash
 $ autoscript list
- 1  2018-04-13 14:58    -
- 2  2018-04-14 20:01    -
- 3  2018-04-18 11:04    github tutorial
+ ID    DATE                 MESSAGE
+ 1     2018-04-13 14:58     -
+ 2     2018-04-14 20:01     -
+ 3     2018-04-18 11:04     github tutorial
 ```
 
 To replay a recorded session, use the `replay` command, specifying the session ID:
@@ -67,11 +68,14 @@ $ autoscript context
 
 Finally, the `delete` command can be used to delete a stopped session:
 ```bash
-$ autoscript delete -i 1
+$ autoscript delete -i 1 # Delete session with ID 1
 $ autoscript list
- 2  2018-04-14 20:01    -
- 3  2018-04-18 11:04    github tutorial
+ ID       DATE                 MESSAGE
+ 2        2018-04-14 20:01     -
+ 3 (r)    2018-04-18 11:04     github tutorial
 ```
+
+Note that the `list` command will show a `(r)` next to the IDs of sessions that are currently being recorded.
 
 ## Tips
 Using [junegunn's fzf](https://github.com/junegunn/fzf), one can easily search for text in a previousy recorded session:
@@ -84,3 +88,4 @@ $ autoscript replay -i 3 | fzf --ansi --reverse
  - Script compression
  - Bash tab completion
  - Check is macOS support is possible
+ - Add storage directory lock
