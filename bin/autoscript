@@ -70,6 +70,17 @@ function record_metatada() {
     } >> "$mdfile"
 }
 
+function copy_to_temp() {
+    local dir
+    local tempfile
+
+    dir=$(dirname "$1")
+    tempfile=$(mktemp -p "$dir")
+    chmod "$file_perms" "$tempfile"
+    cat "$1" > "$tempfile"
+    echo "$tempfile"
+}
+
 function record_mode() {
     ensure_storage_dir
     
@@ -83,8 +94,7 @@ function record_mode() {
     for filename in "$storage_dir"/*.typescript; do
         local id
 
-        id=$(basename "$filename" | grep -Eo "^[0-9]+")
-        if [[ $? -eq 0 ]] && ((id >= next_id)); then
+        if id=$(basename "$filename" | grep -Eo "^[0-9]+") && ((id >= next_id)); then
             ((next_id = id + 1))
         fi
     done
@@ -129,9 +139,8 @@ function list_mode() {
             shopt -s nullglob
             for filename in "$storage_dir"/*.typescript; do
                 local id
-                id=$(basename "$filename" | grep -Eo "^[0-9]+")
-
-                if [[ $? -eq 0 ]]; then
+                
+                if id=$(basename "$filename" | grep -Eo "^[0-9]+"); then
                     local mdfile="$storage_dir"/"$id".metadata.txt
                     local md_date=""
                     local md_message="-"
@@ -184,8 +193,13 @@ function replay_mode() {
         exit 1
     fi
 
+    # Create temporal files to avoid reading scripts while
+    # they are being modified
+    local temp_typescript
+    temp_typescript=$(copy_to_temp "$typescript")
+
     if [[ "$timings_on" == "false" ]]; then
-        cat "$typescript"
+        cat "$temp_typescript"
     else
         local timings="$storage_dir"/"$1".timings
         if [[ ! -f "$timings" ]]; then
@@ -193,8 +207,13 @@ function replay_mode() {
             exit 1
         fi
 
-        scriptreplay -t "$timings" -s "$typescript"
+        local temp_timings
+        temp_timings=$(copy_to_temp "$timings")
+        scriptreplay -t "$temp_timings" -s "$temp_typescript"
+        rm "$temp_timings"
     fi
+
+    rm "$temp_typescript"
 }
 
 function delete_mode() {
@@ -275,9 +294,6 @@ function main() {
         replay)
             if (( id <= 0 )); then
                 echo "Replay mode: ID not specified" >&2
-                exit 1
-            elif [[ -n "$AUTOSCRIPT_ID" ]] && [[ "$AUTOSCRIPT_ID" == "$id" ]]; then
-                echo "Specified script is being written by current session." >&2
                 exit 1
             fi
 

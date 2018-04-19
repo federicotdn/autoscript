@@ -83,10 +83,12 @@ Using [junegunn's `fzf`](https://github.com/junegunn/fzf), one can easily search
 $ autoscript replay -i 3 | fzf --ansi --reverse
 ```
 
+## Uninstalling
+To uninstall `autoscript`, delete the application directory (default: `~/.autoscript`), and the configuration directory (default: `~/.config/autoscript`). Finally, remove the `$PATH` entry that was added to `.bashrc`.
+
 ## Todo
  - Add more scripts metadata
  - Script compression
  - Bash tab completion
  - Check is macOS support is possible
- - Add storage directory lock
- - Remove 'cant replay current session' limitation
+ - Add per-session lock, remove `fuser`
