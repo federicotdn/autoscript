@@ -6,6 +6,21 @@ readonly version="0.1.3"
 readonly storage_perms="700"
 readonly file_perms="600"
 
+# Check OS: Linux or macOS
+declare os
+case "$OSTYPE" in
+    "darwin"*)
+        os="macos"
+    ;;
+    "linux-gnu")
+        os="linux"
+    ;;
+    *)
+        echo "Unsupported OS." >&2
+        exit 1
+    ;;
+esac
+
 set -e
 
 function assert_command_exists() {
@@ -17,7 +32,14 @@ function assert_command_exists() {
 
 function ensure_storage_dir() {
     if [[ -d "$storage_dir" ]]; then
-        if [[ $(stat -c "%a" "$storage_dir") == "$storage_perms" ]]; then
+        local perms
+        if [[ "$os" == "linux" ]]; then
+            perms=$(stat -c "%a" "$storage_dir")
+        else
+            perms=$(stat -f "%Lp" "$storage_dir")
+        fi
+
+        if [[ "$perms" == "$storage_perms" ]]; then
             # Storage dir exists and has correct permissions
             return
         else
@@ -26,7 +48,7 @@ function ensure_storage_dir() {
         fi
     fi
 
-    mkdir "$storage_dir" -m "$storage_perms"
+    mkdir -m "$storage_perms" "$storage_dir"
 }
 
 function print_usage() {
@@ -86,11 +108,11 @@ function record_metatada() {
 }
 
 function copy_to_temp() {
-    local dir
+    local directory
     local tempfile
 
-    dir=$(dirname "$1")
-    tempfile=$(mktemp -p "$dir")
+    directory=$(dirname "$1")
+    tempfile=$(mktemp "$directory"/.tmpXXXXXXXX)
     chmod "$file_perms" "$tempfile"
     cat "$1" > "$tempfile"
     echo "$tempfile"
@@ -143,7 +165,11 @@ function record_mode() {
     lock_id "$next_id"
 
     # Start script(1)
-    AUTOSCRIPT_ID="$next_id" script -f -q -t "$typescript" 2> "$timings"
+    if [[ "$os" == "linux" ]]; then
+        AUTOSCRIPT_ID="$next_id" script -q -f -t "$typescript" 2> "$timings"
+    else
+        AUTOSCRIPT_ID="$next_id" script -q -t 0 "$typescript"
+    fi
     
     unlock_id "$next_id"
 }
@@ -152,7 +178,7 @@ function list_mode() {
     ensure_storage_dir
 
     {
-        printf " ID\t\tDATE\t\tMESSAGE\n"
+        printf " ID\t \tDATE\t \tMESSAGE\n"
 
         {
             shopt -s nullglob
@@ -175,12 +201,12 @@ function list_mode() {
                         id+=" (r)"
                     fi
 
-                    printf " %s\t\t%s\t\t%s\n" "$id" "$md_date" "$md_message"
+                    printf " %s\t \t%s\t \t%s\n" "$id" "$md_date" "$md_message"
                 fi
             done
             shopt -u nullglob
         } | sort -g
-    } | column -t -s $'\t' -n
+    } | column -t -s $'\t'
 }
 
 function resume_mode() {
@@ -204,8 +230,11 @@ function resume_mode() {
         exit 1
     fi
 
-    AUTOSCRIPT_ID="$id" script -f -a -q "$typescript"
-
+    if [[ "$os" == "linux" ]]; then
+        AUTOSCRIPT_ID="$id" script -q -a -f "$typescript"
+    else
+        AUTOSCRIPT_ID="$id" script -q -a -t 0 "$typescript"
+    fi
     unlock_id "$id"
 }
 
@@ -268,7 +297,9 @@ function delete_mode() {
 
 function main() {
     assert_command_exists script
-    assert_command_exists scriptreplay
+    if [[ "$os" == "linux" ]]; then
+        assert_command_exists scriptreplay
+    fi
 
     # Handle help and version flags first
     if [[ "$1" == "-v" ]]; then
@@ -313,6 +344,11 @@ function main() {
         esac
     done
     
+    if [[ "$os" == "macos" ]] && [[ "$timings" == "true" ]]; then
+        echo "Recording timings is currently not supported on macOS." >&2
+        exit 1
+    fi
+
     case "$subcommand" in
         record)
             if [[ -n "$AUTOSCRIPT_ID" ]]; then

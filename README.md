@@ -5,15 +5,22 @@ File management for [`script(1)`](http://man7.org/linux/man-pages/man1/script.1.
 
 **`autoscript`** manages files created by `script`, allowing the user to list, delete and resume recordings. `autoscript` also attaches some data along the created typescripts, like the current date or a user-specified message.
 
+## Requirements
+
+- On **GNU/Linux**, `autoscript` requires Bash, and the `script` and `scriptreplay` commands.
+- On **macOS**, `autoscript` requires Bash and only the `script` command.
+
 ## Installation
 1. Check out `autoscript` into a directory. In the following example, `~/.autoscript` is used:
 ```bash
 $ git clone https://github.com/federicotdn/autoscript.git ~/.autoscript
 ```
 
-2. Add the `autoscript` executable to your `$PATH`, by adding a new line to your `.bashrc` file:
+2. Add the `autoscript` executable to your `$PATH`, by adding a new line to your Bash configuration file:
 ```bash
-$ echo 'export PATH="$HOME/.autoscript/bin:$PATH"' >> ~/.bashrc
+$ echo 'export PATH="$HOME/.autoscript/bin:$PATH"' >> ~/.bashrc # on GNU/Linux
+
+$ echo 'export PATH="$HOME/.autoscript/bin:$PATH"' >> ~/.bash_profile # on macOS
 ```
 
 3. Load your `.bashrc` file:
@@ -88,7 +95,7 @@ $ autoscript replay -i 3 | fzf --ansi --reverse
 ```
 
 ## Uninstalling
-To uninstall `autoscript`, delete the application directory (default: `~/.autoscript`), and the configuration directory (default: `~/.config/autoscript`). Finally, remove the `$PATH` entry that was added to `.bashrc`.
+To uninstall `autoscript`, delete the application directory (default: `~/.autoscript`), and the configuration directory (default: `~/.config/autoscript`). Finally, remove the `$PATH` entry that was added to `.bashrc` or `.bash_profile`.
 
 ## Todo
  - Add more scripts metadata
