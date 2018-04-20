@@ -23,9 +23,11 @@ $ echo 'export PATH="$HOME/.autoscript/bin:$PATH"' >> ~/.bashrc # on GNU/Linux
 $ echo 'export PATH="$HOME/.autoscript/bin:$PATH"' >> ~/.bash_profile # on macOS
 ```
 
-3. Load your `.bashrc` file:
+3. Load your Bash configuration file:
 ```bash
-$ source ~/.bashrc
+$ source ~/.bashrc # on GNU/Linux
+
+$ source ~/.bash_profile # on macOS
 ```
 
 ## Usage
@@ -101,4 +103,3 @@ To uninstall `autoscript`, delete the application directory (default: `~/.autosc
  - Add more scripts metadata
  - Script compression
  - Bash tab completion
- - Check is macOS support is possible
