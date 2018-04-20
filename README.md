@@ -1,6 +1,10 @@
 # autoscript
 File management for [`script(1)`](http://man7.org/linux/man-pages/man1/script.1.html).
 
+**`script`** makes a typescript (recording) of everything displayed on your terminal.
+
+**`autoscript`** manages files created by `script`, allowing the user to list, delete and resume recordings. `autoscript` also attaches some data along the created typescripts, like the current date or a user-specified message.
+
 ## Installation
 1. Check out `autoscript` into a directory. In the following example, `~/.autoscript` is used:
 ```bash
