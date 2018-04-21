@@ -52,7 +52,7 @@ function ensure_storage_dir() {
 }
 
 function print_usage() {
-    printf "usage: autoscript [-h] [-v] <command> [-i <id>] [-q] [-t] [-m <message>]\n\n"
+    printf "usage: autoscript [-h] [-v] <command> [-i <id>] [-q] [-t] [-a] [-m <message>]\n\n"
     printf "Available commands:\n"
     printf "   record\n"
     printf "   replay\n"
@@ -65,6 +65,7 @@ function print_usage() {
         printf "   -id <id>\tSpecify an ID\n"
         printf "   -t\tRecord/replay with timings\n"
         printf "   -q\tEnable quiet mode\n"
+        printf "   -a\tRemove ANSI escape sequences\n"
         printf "   -m <message>\tSpecify a message\n"
         printf "   -h\tPrint help and exit\n"
         printf "   -v\tPrint version and exit\n"
@@ -92,6 +93,15 @@ function check_id_lock() {
     # Not an atomic operation, shouldn't be used
     # for anything important
     test -d "$storage_dir"/"$1".lock
+}
+
+function remove_ansi_escapes() {
+    # 1) Removes operating system commands
+    # 2) Removes all remaining escape sequences
+    # 3) Remove bells and backspaces
+    sed -E -e 's/\x1B\]0;[^\x7]+\x7//g' \
+           -e 's/\x1B\[[0-9;]*[a-zA-Z]//g' \
+           -e 's/(\x8+|\x7+)/ /g'
 }
 
 function record_metatada() {
@@ -242,6 +252,7 @@ function replay_mode() {
     ensure_storage_dir
     local typescript="$storage_dir"/"$1".typescript
     local timings_on="$2"
+    local ansi="$3"
 
     if [[ ! -f "$typescript" ]]; then
         echo "No script found for specified ID." >&2
@@ -254,7 +265,13 @@ function replay_mode() {
     temp_typescript=$(copy_to_temp "$typescript")
 
     if [[ "$timings_on" == "false" ]]; then
-        cat "$temp_typescript"
+        if [[ "$ansi" == "false" ]]; then
+            # Print typescript as-is
+            cat "$temp_typescript"
+        else
+            # Print typescript, trying to remove ANSI escape sequences
+            remove_ansi_escapes < "$temp_typescript"
+        fi
     else
         local timings="$storage_dir"/"$1".timings
         if [[ ! -f "$timings" ]]; then
@@ -315,11 +332,12 @@ function main() {
     # Parse arguments
     local quiet="false"
     local timings="false"
+    local ansi="false"
     local message="-"
     local id=0
     local OPTIND=2
 
-    while getopts ":qti:m:" opt; do
+    while getopts ":qti:m:a" opt; do
         case "$opt" in
             q)
                 quiet="true"
@@ -332,6 +350,9 @@ function main() {
             ;;
             m)
                 message="$OPTARG"
+            ;;
+            a)
+                ansi="true"
             ;;
             :)
                 echo "Option -$OPTARG requires an argument." >&2
@@ -346,6 +367,11 @@ function main() {
     
     if [[ "$os" == "macos" ]] && [[ "$timings" == "true" ]]; then
         echo "Recording timings is currently not supported on macOS." >&2
+        exit 1
+    fi
+
+    if [[ "$timings" == "true" ]] && [[ "$ansi" == "true" ]]; then
+        echo "Can't remove ANSI escape codes when reading timings." >&2
         exit 1
     fi
 
@@ -368,7 +394,7 @@ function main() {
                 exit 1
             fi
 
-            replay_mode "$id" "$timings"
+            replay_mode "$id" "$timings" "$ansi"
         ;;
         delete)
             if (( id <= 0 )); then
