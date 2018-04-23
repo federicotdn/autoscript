@@ -93,8 +93,10 @@ Note that the `list` command will show a `(r)` next to the IDs of sessions that 
 ## Tips
 Using [junegunn's `fzf`](https://github.com/junegunn/fzf), one can easily search for text in a previousy recorded session:
 ```bash
-$ autoscript replay -i 3 | fzf --ansi --reverse
+$ autoscript replay -i 3 -a | fzf --reverse
 ```
+
+The `-a` flag removes ANSI escape sequences from the recorded script.
 
 ## Uninstalling
 To uninstall `autoscript`, delete the application directory (default: `~/.autoscript`), and the configuration directory (default: `~/.config/autoscript`). Finally, remove the `$PATH` entry that was added to `.bashrc` or `.bash_profile`.
